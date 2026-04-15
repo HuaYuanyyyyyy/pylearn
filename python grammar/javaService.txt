@@ -1,0 +1,57 @@
+import java.util.*;
+
+@Service
+public class ModelService {
+    private Map<Integer, ModelDTO> db = new HashMap<>();
+    private int idCounter = 1;
+
+    public ModelDTO getModel(int id) {
+        ModelDTO model = db.get(id);
+        if (model == null) {
+            throw new RuntimeException("模型不存在");
+        }
+        return model;
+    }
+
+    public List<ModelDTO> getAllModels() {
+        return new ArrayList<>(db.values());
+    }
+
+    public List<ModelDTO> getDeployedModels() {
+        List<ModelDTO> result = new ArrayList<>();
+        for (ModelDTO model : db.values()) {
+            if (model.getIsDeployed()) {
+                result.add(model);
+            }
+        }
+        return result;
+    }
+
+    public ModelDTO createModel(ModelDTO model) {
+        db.put(idCounter++, model);
+        return model;
+    }
+
+    public ModelDTO updateModel(int id, ModelDTO model) {
+        if (!db.containsKey(id)) {
+            throw new RuntimeException("模型不存在");
+        }
+        db.put(id, model);
+        return model;
+    }
+
+    public void deployModel(int id) {
+        ModelDTO model = db.get(id);
+        if (model == null) {
+            throw new RuntimeException("模型不存在");
+        }
+        model.setIsDeployed(true);
+    }
+
+    public void deleteModel(int id) {
+        if (!db.containsKey(id)) {
+            throw new RuntimeException("模型不存在");
+        }
+        db.remove(id);
+    }
+}

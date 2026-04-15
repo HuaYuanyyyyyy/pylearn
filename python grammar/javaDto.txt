@@ -1,0 +1,34 @@
+import javax.validation.constraints.*;
+
+public class ModelDTO {
+    @NotBlank(message = "模型名称不能为空")
+    @Size(min = 1, max = 100)
+    private String name;
+
+    @NotBlank(message = "模型类型不能为空")
+    // 例如：LLM / CV / ASR
+    private String type;
+
+    @NotBlank(message = "版本号不能为空")
+    private String version;
+
+    @NotNull(message = "参数量不能为空")
+    @Min(value = 0)
+    // 单位：亿参数
+    private Double parameterSize;
+
+    @NotNull
+    private Boolean isDeployed;
+
+    // getter setter
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+    public String getVersion() { return version; }
+    public void setVersion(String version) { this.version = version; }
+    public Double getParameterSize() { return parameterSize; }
+    public void setParameterSize(Double parameterSize) { this.parameterSize = parameterSize; }
+    public Boolean getIsDeployed() { return isDeployed; }
+    public void setIsDeployed(Boolean isDeployed) { this.isDeployed = isDeployed; }
+}

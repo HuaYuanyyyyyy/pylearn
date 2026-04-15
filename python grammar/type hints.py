@@ -6,6 +6,7 @@ from typing import List
 from typing import Dict
 from typing import Tuple
 from pydantic import BaseModel, EmailStr, Field
+from pydantic.type_adapter import P
 
 print("python is a good language")
 
@@ -97,3 +98,46 @@ user1 = User(**user_data)
 user2 = User(name='Jane', age=25, email='jane@example.com')
 print(user1)
 print(user2)
+
+
+# 列表推导：[x for x in list if condition]
+
+nums = [1,2,3,4,5,6,7,8]
+evens = []
+evens = [num for num in nums if num % 2 == 1]
+print(evens)
+
+
+
+# 装饰器
+def function1(func):
+    print("装饰器被调用")
+    return func
+
+@function1
+def say_hello():
+    print("hello")
+
+say_hello()
+
+# 装饰器原理
+
+def timer(func):
+    print("第一次执行")
+    def wrapper(*args,**kwargs):
+        print("计时开始1")
+        func(*args,**kwargs)
+        print("进入func")
+    return wrapper
+#
+print("计时开始")
+#
+
+@timer
+def main(a):
+    a = 3
+    print(f"{a}执行中")
+
+#
+main(1)    
+print("执行结束")
