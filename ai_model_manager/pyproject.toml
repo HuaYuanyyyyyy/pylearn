@@ -8,6 +8,7 @@ dependencies = [
     "aiomysql>=0.3.2",
     "asyncmy>=0.2.11",
     "fastapi>=0.136.0",
+    "pandas>=3.0.2",
     "pydantic>=2.13.2",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.49",
