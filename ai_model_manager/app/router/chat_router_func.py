@@ -1,8 +1,10 @@
 from datetime import datetime
+import json
 import re
 from fastapi import APIRouter
 from pydantic import BaseModel
 from openai import AsyncOpenAI
+from app.router.get_weather import fetch_weather
 from app.config.database import AsyncSessionLocal
 from app.repository.model_repository import ModelRepository
 from app.service.model_service import ModelService
@@ -41,6 +43,23 @@ tools = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_weather",
+            "description": "获取指定城市当前天气，例如温度、天气描述、湿度",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city":{
+                        "type":"string",
+                        "description":"城市名，例如beijing，shanghai，shenzhen"
+                    }
+                },
+                "required": ["city"]
+            }
+        }
     }
 ]
 
@@ -74,6 +93,13 @@ async def chat(request: ChatRequest):
                 result = str([m.name for m in models])
         elif function_name == "get_current_time":
             result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        elif function_name == "get_current_weather":
+            args = json.loads(tool_call.function.arguments or "{}")
+            city = args.get("city", "").strip()
+            if not city:
+                result = "缺少 city 参数，请提供城市名"
+            else:
+                result = await fetch_weather(city)
         # 结果取出来
         all_messages.append(response.choices[0].message)
         all_messages.append({
