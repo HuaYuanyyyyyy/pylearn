@@ -1,3 +1,4 @@
+from datetime import datetime
 import re
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -28,6 +29,18 @@ tools = [
                 "required": []
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_current_time",
+            "description": "获取当前系统时间，返回 YYYY-MM-DD HH:MM:SS 格式",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
     }
 ]
 
@@ -49,33 +62,50 @@ async def chat(request: ChatRequest):
         # 返回tool_call是否有值
         tool_call  = response.choices[0].message.tool_calls[0]
         #调用AI tools
+        result :str = ""
         function_name = tool_call.function.name  # 取出函数名
         if function_name == "get_all_models":
             # 调用你自己的 service 获取模型列表
             # 把结果转成字符串
-            result :str = ""
             async with AsyncSessionLocal() as db:
                 repo = ModelRepository(db)
                 service = ModelService(repo)
                 models = await service.get_all_models()
                 result = str([m.name for m in models])
-            # 结果取出来
-            all_messages.append(response.choices[0].message)
-            all_messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": result
-            })
-            # 再发一次请求，让 AI 根据结果回答
-            final_response = await client.chat.completions.create(
-                model="deepseek-chat",
-                messages=all_messages,
-            )
-            print(final_response.choices[0].message.content)
-            all_messages.append({"role":"assistant","content":final_response.choices[0].message.content})
+        elif function_name == "get_current_time":
+            result = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 结果取出来
+        all_messages.append(response.choices[0].message)
+        all_messages.append({
+            "role": "tool",
+            "tool_call_id": tool_call.id,
+            "content": result
+        })
+        # 再发一次请求，让 AI 根据结果回答
+        final_response = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=all_messages,
+            stream=True
+        )
+        # print(final_response.choices[0].message.content)
+        chunks :str = ""
+        async for chunk in final_response:
+            if chunk.choices[0].delta.content is not None:
+                print(chunk.choices[0].delta.content, end = "",flush = True)
+                chunks = chunks + chunk.choices[0].delta.content
+        all_messages.append({"role":"assistant","content":chunks})
     else:
-        print(response.choices[0].message.content)
-        all_messages.append({"role":"assistant","content":response.choices[0].message.content})
+        stream_resp = await client.chat.completions.create(
+            model="deepseek-chat",
+            messages=all_messages,
+            stream=True
+        )
+        chunks :str = ""    
+        async for chunk in stream_resp:
+            if chunk.choices[0].delta.content is not None:
+                print(chunk.choices[0].delta.content, end = "",flush = True)
+                chunks = chunks + chunk.choices[0].delta.content
+        all_messages.append({"role":"assistant","content":chunks})
 
     # chunks: str = ""
     # async for chunk in response:
@@ -83,6 +113,6 @@ async def chat(request: ChatRequest):
     #         print(chunk.choices[0].delta.content,end="", flush=True)
     #         chunks = chunks + chunk.choices[0].delta.content
     # #结束追加
-    print(all_messages) 
+    print(all_messages)
     return all_messages
          
