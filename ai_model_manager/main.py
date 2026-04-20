@@ -5,6 +5,7 @@ from app.config.settings import APP_NAME, APP_VERSION
 from app.router.model_router import router
 from app.model import model_entity
 from app.router.chat_router import router as chat_router
+from app.router.chat_router_func import router as chat_router_func
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,6 +16,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=APP_NAME, version=APP_VERSION, lifespan=lifespan)
 app.include_router(router)
 app.include_router(chat_router)
+app.include_router(chat_router_func)
 
 @app.get("/")
 def root():
