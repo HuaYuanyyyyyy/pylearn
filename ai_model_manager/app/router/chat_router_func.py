@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import re
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from openai import AsyncOpenAI
 from app.router.get_weather import fetch_weather
@@ -16,7 +17,16 @@ client = AsyncOpenAI(
     base_url="https://api.deepseek.com"
 )
 
-all_messages = [{"role": "system", "content":"你是一个AI智能助手"}]
+all_messages = [{"role": "system", "content":"""你是一个AI模型管理系统的助手，
+                可以查询模型列表、查询天气、获取当前时间等等问题。
+                回答要简洁，使用中文。
+                示例：
+                    用户：系统里有几个模型？
+                    助手：系统中共有 X 个模型",分别为"a","b"
+                在回答问题之前，请先分析用户的意图，判断需要调用哪个工具，然后再给出答案。    
+                """}]
+
+# 所有回答必须以 JSON 格式返回，格式为：{"answer": "回答内容", "tool_used": "使用的工具名或null"}
 
 #定义查询全部模型工具
 tools = [
@@ -73,8 +83,9 @@ async def chat(request: ChatRequest):
         model="deepseek-chat",
         messages = all_messages,
         tools=tools,        # 把工具定义传进去
-        tool_choice="auto"
+        tool_choice="auto",
     )
+    # response_format={"type": "json_object"}
     
     # 有值走函数调用，没有值走普通回答
     if response.choices[0].message.tool_calls:
@@ -106,32 +117,34 @@ async def chat(request: ChatRequest):
             "role": "tool",
             "tool_call_id": tool_call.id,
             "content": result
-        })
-        # 再发一次请求，让 AI 根据结果回答
-        final_response = await client.chat.completions.create(
-            model="deepseek-chat",
-            messages=all_messages,
-            stream=True
-        )
+        })  
+        async def generate():
+            # 再发一次请求，让 AI 根据结果回答
+            final_response = await client.chat.completions.create(
+                model="deepseek-chat",
+                messages=all_messages,
+                stream=True
+            )
         # print(final_response.choices[0].message.content)
-        chunks :str = ""
-        async for chunk in final_response:
-            if chunk.choices[0].delta.content is not None:
-                print(chunk.choices[0].delta.content, end = "",flush = True)
-                chunks = chunks + chunk.choices[0].delta.content
-        all_messages.append({"role":"assistant","content":chunks})
+            chunks :str = ""  
+            async for chunk in final_response:
+                if chunk.choices[0].delta.content is not None:
+                    yield chunk.choices[0].delta.content
+            all_messages.append({"role":"assistant","content":chunks})        
+        return StreamingResponse(generate(), media_type="text/plain")
     else:
-        stream_resp = await client.chat.completions.create(
+        async def generate():
+            stream_resp = await client.chat.completions.create(
             model="deepseek-chat",
             messages=all_messages,
-            stream=True
-        )
-        chunks :str = ""    
-        async for chunk in stream_resp:
-            if chunk.choices[0].delta.content is not None:
-                print(chunk.choices[0].delta.content, end = "",flush = True)
-                chunks = chunks + chunk.choices[0].delta.content
-        all_messages.append({"role":"assistant","content":chunks})
+            stream=True,
+            )
+            chunks :str = ""
+            async for chunk in stream_resp:
+                if chunk.choices[0].delta.content is not None:
+                    yield chunk.choices[0].delta.content
+            all_messages.append({"role": "assistant", "content": chunks})        
+        return StreamingResponse(generate(), media_type="text/plain")
 
     # chunks: str = ""
     # async for chunk in response:
@@ -139,6 +152,7 @@ async def chat(request: ChatRequest):
     #         print(chunk.choices[0].delta.content,end="", flush=True)
     #         chunks = chunks + chunk.choices[0].delta.content
     # #结束追加
-    print(all_messages)
-    return all_messages
+    print()
+    print(f"总共的--->{all_messages}")
+    # return all_messages
          
